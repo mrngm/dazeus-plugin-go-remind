@@ -8,11 +8,13 @@ import (
 	"github.com/dazeus/dazeus-go"
 )
 
+var myCommand string
+
 func handlePrivmsg(dz *dazeus.DaZeus, ev dazeus.Event) {
 	if len(ev.Params) > 1 {
 		// The message sits in evt.Params[0]
-		if idx := strings.Index(ev.Params[0], "!remind"); idx > -1 {
-			params := strings.Replace(ev.Params[0], "!remind ", "", 1)
+		if idx := strings.Index(ev.Params[0], myCommand); idx > -1 {
+			params := strings.Replace(ev.Params[0], myCommand+" ", "", 1)
 			handled := false
 
 		regexLoop:
@@ -36,16 +38,19 @@ func main() {
 		connStr = os.Args[1]
 	}
 
-	dz, err := dazeus.Connect(connStr)
+	dz, err := dazeus.ConnectWithLoggingToStdErr(connStr)
 	if err != nil {
 		panic(err)
 	}
 
+	if hl, hlerr := dz.HighlightCharacter(); hlerr != nil {
+		panic(hlerr)
+	} else {
+		myCommand = hl + "remind"
+	}
+
 	_, err = dz.Subscribe(dazeus.EventPrivMsg, func(ev dazeus.Event) {
 		fmt.Printf("Got PRIVMSG: %+v\n", ev)
-		for i, v := range ev.Params {
-			fmt.Printf("-> %d: %s\n", i, v)
-		}
 		handlePrivmsg(dz, ev)
 	})
 	if err != nil {

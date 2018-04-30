@@ -27,7 +27,14 @@ func handleRemind(dz *dazeus.DaZeus, ev dazeus.Event, what, params string) {
 }
 
 func handleDefault(dz *dazeus.DaZeus, ev dazeus.Event) {
-	ev.Reply("Sorry, I couldn't quite understand that. Use `!remind help` for usage instructions.", true)
+	var hl string
+	var err error
+
+	if hl, err = dz.HighlightCharacter(); err != nil {
+		panic(err)
+	}
+
+	ev.Reply("Sorry, I couldn't quite understand that. Use `"+hl+"remind help` for usage instructions.", true)
 }
 
 func handleHelp(dz *dazeus.DaZeus, ev dazeus.Event, params string) {
@@ -40,5 +47,8 @@ func handleHelp(dz *dazeus.DaZeus, ev dazeus.Event, params string) {
 		}
 	} else {
 		ev.Reply("Alright, sending you the help.", true)
+		for _, v := range helpstrs {
+			dz.Message(ev.Network, ev.Sender, v)
+		}
 	}
 }
