@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/dazeus/dazeus-go"
 )
 
-func handleRemind(dz *dazeus.DaZeus, ev dazeus.Event, what, params string) {
+func handleCommand(dz *dazeus.DaZeus, ev dazeus.Event, what string, regex *regexp.Regexp, params string) {
 	switch what {
 	case "help":
 		handleHelp(dz, ev, params)
@@ -16,7 +17,7 @@ func handleRemind(dz *dazeus.DaZeus, ev dazeus.Event, what, params string) {
 	case "set":
 		ev.Reply("matched REGEX_SET", true)
 	case "remind":
-		ev.Reply("matched REGEX_REMIND", true)
+		handleRemind(dz, ev, regex, params)
 	case "open":
 		ev.Reply("matched REGEX_OPEN", true)
 	case "debug":
@@ -38,7 +39,6 @@ func handleDefault(dz *dazeus.DaZeus, ev dazeus.Event) {
 }
 
 func handleHelp(dz *dazeus.DaZeus, ev dazeus.Event, params string) {
-	fmt.Printf("  idx: %d, params: %s\n", strings.Index(strings.ToLower(params), "regex"), params)
 	if strings.Index(strings.ToLower(params), "regex") != -1 {
 		// Send help in regex
 		ev.Reply("Alright, sending you the help for haxxors.", true)
@@ -51,4 +51,41 @@ func handleHelp(dz *dazeus.DaZeus, ev dazeus.Event, params string) {
 			dz.Message(ev.Network, ev.Sender, v)
 		}
 	}
+}
+
+func handleRemind(dz *dazeus.DaZeus, ev dazeus.Event, regex *regexp.Regexp, params string) {
+	who := "$who"
+	what := "$what"
+	where := "$where"
+	whomatch := []byte{}
+	whatmatch := []byte{}
+	wherematch := []byte{}
+
+	// For each match of the regex in the content.
+	for _, submatches := range regex.FindAllStringSubmatchIndex(params, -1) {
+		// Apply the captured submatches to the template and append the output
+		// to the result.
+		whomatch = regex.ExpandString(whomatch, who, params, submatches)
+		whatmatch = regex.ExpandString(whatmatch, what, params, submatches)
+		wherematch = regex.ExpandString(wherematch, where, params, submatches)
+	}
+
+	// XXX: check the boolean conditions
+	whom := ev.Sender
+	if strings.TrimSpace(string(whomatch)) != "me" && strings.TrimSpace(string(whomatch)) != ev.Sender {
+		whom = strings.TrimSpace(string(whomatch))
+	}
+
+	fmt.Println("  handleRemind: whom:", whom)
+
+	destination := ev.Channel
+	if string(wherematch) == "personally" || whom != ev.Sender {
+		destination = whom
+	} else if string(wherematch) != "here" {
+		destination = string(wherematch)
+	}
+
+	fmt.Println("  handleRemind: destination: ", destination)
+
+	dz.Message(ev.Network, destination, fmt.Sprintf("%s: %s", whom, string(whatmatch)))
 }

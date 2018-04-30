@@ -20,13 +20,13 @@ func handlePrivmsg(dz *dazeus.DaZeus, ev dazeus.Event) {
 		regexLoop:
 			for k, v := range regexes {
 				if v.MatchString(params) {
-					handleRemind(dz, ev, k, params)
+					handleCommand(dz, ev, k, v, params)
 					handled = true
 					break regexLoop
 				}
 			}
 			if !handled {
-				handleRemind(dz, ev, "", params)
+				handleCommand(dz, ev, "", nil, params)
 			}
 		}
 	}
