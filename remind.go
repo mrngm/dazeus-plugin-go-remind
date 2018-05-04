@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
@@ -50,12 +49,12 @@ func main() {
 	}
 
 	_, err = dz.Subscribe(dazeus.EventPrivMsg, func(ev dazeus.Event) {
-		fmt.Printf("Got PRIVMSG: %+v\n", ev)
 		handlePrivmsg(dz, ev)
 	})
 	if err != nil {
 		panic(err)
 	}
 
-	dz.Listen()
+	listenerr := dz.Listen()
+	panic(listenerr)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/dazeus/dazeus-go"
 )
@@ -15,7 +16,7 @@ func handleCommand(dz *dazeus.DaZeus, ev dazeus.Event, what string, regex *regex
 	case "unset":
 		ev.Reply("matched REGEX_UNSET", true)
 	case "set":
-		ev.Reply("matched REGEX_SET", true)
+		handleSet(dz, ev, regex, params)
 	case "remind":
 		handleRemind(dz, ev, regex, params)
 	case "open":
@@ -88,4 +89,80 @@ func handleRemind(dz *dazeus.DaZeus, ev dazeus.Event, regex *regexp.Regexp, para
 	fmt.Println("  handleRemind: destination: ", destination)
 
 	dz.Message(ev.Network, destination, fmt.Sprintf("%s: %s", whom, string(whatmatch)))
+}
+
+func handleSet(dz *dazeus.DaZeus, ev dazeus.Event, regex *regexp.Regexp, params string) {
+	who := "$who"
+	what := "$what"
+	where := "$where"
+	datespec := "$datespec"
+	durationspec := "$durationspec"
+	repeatspec := "$repeatspec"
+	repeatfrom := "$repeatfrom"
+	repeatuntil := "$repeatuntil"
+	whomatch := []byte{}
+	whatmatch := []byte{}
+	wherematch := []byte{}
+	datematch := []byte{}
+	durationmatch := []byte{}
+	repeatspecmatch := []byte{}
+	repeatfrommatch := []byte{}
+	repeatuntilmatch := []byte{}
+
+	// For each match of the regex in the content.
+	for _, submatches := range regex.FindAllStringSubmatchIndex(params, -1) {
+		// Apply the captured submatches to the template and append the output
+		// to the result.
+		whomatch = regex.ExpandString(whomatch, who, params, submatches)
+		whatmatch = regex.ExpandString(whatmatch, what, params, submatches)
+		wherematch = regex.ExpandString(wherematch, where, params, submatches)
+		datematch = regex.ExpandString(datematch, datespec, params, submatches)
+		durationmatch = regex.ExpandString(durationmatch, durationspec, params, submatches)
+		repeatspecmatch = regex.ExpandString(repeatspecmatch, repeatspec, params, submatches)
+		repeatfrommatch = regex.ExpandString(repeatfrommatch, repeatfrom, params, submatches)
+		repeatuntilmatch = regex.ExpandString(repeatuntilmatch, repeatuntil, params, submatches)
+	}
+
+	// XXX: check the boolean conditions
+	whom := ev.Sender
+	if strings.TrimSpace(string(whomatch)) != "me" && strings.TrimSpace(string(whomatch)) != ev.Sender {
+		whom = strings.TrimSpace(string(whomatch))
+	}
+
+	fmt.Println("  handleRemind: whom:", whom)
+
+	destination := ev.Channel
+	if len(string(wherematch)) > 0 {
+		if string(wherematch) == "personally" || whom != ev.Sender {
+			destination = whom
+		} else if string(wherematch) != "here" {
+			destination = string(wherematch)
+		}
+	}
+
+	fmt.Println("  handleRemind: destination: ", destination)
+
+	switch {
+	case len(string(datematch)) > 0:
+
+	case len(string(durationmatch)) > 0:
+		if dur, err := time.ParseDuration(string(durationmatch)); err == nil {
+			dz.Message(ev.Network, destination, fmt.Sprintf("%s: I'll remind you about %s in %s", whom, string(whatmatch), string(durationmatch)))
+			go func() {
+				select {
+				case <-time.After(dur):
+					dz.Message(ev.Network, destination, fmt.Sprintf("%s: %s", whom, string(whatmatch)))
+				}
+			}()
+		} else {
+			dz.Message(ev.Network, destination, fmt.Sprintf("%s: I couldn't parse your duration %s: %v, %v", whom, string(durationmatch), dur, err))
+		}
+
+	case len(string(repeatspecmatch)) > 0:
+
+	default:
+		dz.Message(ev.Network, destination, fmt.Sprintf("%s: stoek"))
+	}
+	fmt.Printf("who: '%s', what: '%s', where: '%s', date: '%s', duration: '%s', repeatspec: '%s', from: '%s', until: '%s'\n",
+		whomatch, whatmatch, wherematch, datematch, durationmatch, repeatspecmatch, repeatfrommatch, repeatuntilmatch)
 }
