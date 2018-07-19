@@ -82,7 +82,7 @@ func handleRemind(dz *dazeus.DaZeus, ev dazeus.Event, regex *regexp.Regexp, para
 	destination := ev.Channel
 	if string(wherematch) == "personally" || whom != ev.Sender {
 		destination = whom
-	} else if string(wherematch) != "here" {
+	} else if len(wherematch) > 0 && string(wherematch) != "here" {
 		destination = string(wherematch)
 	}
 
