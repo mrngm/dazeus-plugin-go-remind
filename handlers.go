@@ -88,7 +88,7 @@ func handleRemind(dz *dazeus.DaZeus, ev dazeus.Event, regex *regexp.Regexp, para
 
 	fmt.Println("  handleRemind: destination: ", destination)
 
-	dz.Message(ev.Network, destination, fmt.Sprintf("%s: %s", whom, string(whatmatch)))
+	dz.Reply(ev.Network, destination, whom, string(whatmatch), true)
 }
 
 func handleSet(dz *dazeus.DaZeus, ev dazeus.Event, regex *regexp.Regexp, params string) {
@@ -147,21 +147,21 @@ func handleSet(dz *dazeus.DaZeus, ev dazeus.Event, regex *regexp.Regexp, params 
 
 	case len(string(durationmatch)) > 0:
 		if dur, err := time.ParseDuration(string(durationmatch)); err == nil {
-			dz.Message(ev.Network, destination, fmt.Sprintf("%s: I'll remind you about %s in %s", whom, string(whatmatch), string(durationmatch)))
+			ev.Reply(fmt.Sprintf("I'll remind you about %s in %s", string(whatmatch), string(durationmatch)), true)
 			go func() {
 				select {
 				case <-time.After(dur):
-					dz.Message(ev.Network, destination, fmt.Sprintf("%s: %s", whom, string(whatmatch)))
+					dz.Reply(ev.Network, destination, whom, string(whatmatch), true)
 				}
 			}()
 		} else {
-			dz.Message(ev.Network, destination, fmt.Sprintf("%s: I couldn't parse your duration %s: %v, %v", whom, string(durationmatch), dur, err))
+			ev.Reply(fmt.Sprintf("I couldn't parse your duration %s: %v, %v", string(durationmatch), dur, err), true)
 		}
 
 	case len(string(repeatspecmatch)) > 0:
 
 	default:
-		dz.Message(ev.Network, destination, fmt.Sprintf("%s: stoek"))
+		ev.Reply("stoek", true)
 	}
 	fmt.Printf("who: '%s', what: '%s', where: '%s', date: '%s', duration: '%s', repeatspec: '%s', from: '%s', until: '%s'\n",
 		whomatch, whatmatch, wherematch, datematch, durationmatch, repeatspecmatch, repeatfrommatch, repeatuntilmatch)
