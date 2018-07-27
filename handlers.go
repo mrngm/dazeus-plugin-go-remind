@@ -129,7 +129,7 @@ func handleSet(dz *dazeus.DaZeus, ev dazeus.Event, regex *regexp.Regexp, params 
 		whom = strings.TrimSpace(string(whomatch))
 	}
 
-	fmt.Println("  handleRemind: whom:", whom)
+	fmt.Printf("  handleRemind: whom: %v\n", whom)
 
 	destination := ev.Channel
 	if len(string(wherematch)) > 0 {
@@ -137,6 +137,11 @@ func handleSet(dz *dazeus.DaZeus, ev dazeus.Event, regex *regexp.Regexp, params 
 			destination = whom
 		} else if string(wherematch) != "here" {
 			destination = string(wherematch)
+		}
+	}
+	if nick, nerr := dz.Nick(ev.Network); nerr == nil {
+		if destination == nick {
+			destination = whom
 		}
 	}
 
@@ -147,11 +152,12 @@ func handleSet(dz *dazeus.DaZeus, ev dazeus.Event, regex *regexp.Regexp, params 
 
 	case len(string(durationmatch)) > 0:
 		if dur, err := time.ParseDuration(string(durationmatch)); err == nil {
-			ev.Reply(fmt.Sprintf("I'll remind you about %s in %s", string(whatmatch), string(durationmatch)), true)
+			ev.Reply(fmt.Sprintf("I'll remind %s about %s in %s", whom, string(whatmatch), string(durationmatch)), true)
 			go func() {
 				select {
 				case <-time.After(dur):
-					dz.Reply(ev.Network, destination, whom, string(whatmatch), true)
+					msg := fmt.Sprintf("%s: %s", whom, whatmatch)
+					dz.Message(ev.Network, destination, msg)
 				}
 			}()
 		} else {

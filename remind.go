@@ -1,32 +1,29 @@
 package main
 
 import (
+	"fmt"
 	"os"
-	"strings"
+	"runtime/debug"
 
 	"github.com/dazeus/dazeus-go"
 )
 
 var myCommand string
 
-func handlePrivmsg(dz *dazeus.DaZeus, ev dazeus.Event) {
+func handleRemindMessage(dz *dazeus.DaZeus, ev dazeus.Event) {
 	if len(ev.Params) > 1 {
 		// The message sits in evt.Params[0]
-		if idx := strings.Index(ev.Params[0], myCommand); idx > -1 {
-			params := strings.Replace(ev.Params[0], myCommand+" ", "", 1)
-			handled := false
-
-		regexLoop:
-			for k, v := range regexes {
-				if v.MatchString(params) {
-					handleCommand(dz, ev, k, v, params)
-					handled = true
-					break regexLoop
-				}
+		handled := false
+	regexLoop:
+		for k, v := range regexes {
+			if v.MatchString(ev.Params[0]) {
+				handleCommand(dz, ev, k, v, ev.Params[0])
+				handled = true
+				break regexLoop
 			}
-			if !handled {
-				handleCommand(dz, ev, "", nil, params)
-			}
+		}
+		if !handled {
+			handleCommand(dz, ev, "", nil, ev.Params[0])
 		}
 	}
 }
@@ -36,20 +33,24 @@ func main() {
 	if len(os.Args) > 1 {
 		connStr = os.Args[1]
 	}
+	defer func() {
+		if p := recover(); p != nil {
+			fmt.Printf("Paniek! %v\n", p)
+			debug.PrintStack()
+		}
+	}()
 
 	dz, err := dazeus.ConnectWithLoggingToStdErr(connStr)
 	if err != nil {
 		panic(err)
 	}
 
-	if hl, hlerr := dz.HighlightCharacter(); hlerr != nil {
+	if _, hlerr := dz.HighlightCharacter(); hlerr != nil {
 		panic(hlerr)
-	} else {
-		myCommand = hl + "remind"
 	}
 
-	_, err = dz.Subscribe(dazeus.EventPrivMsg, func(ev dazeus.Event) {
-		handlePrivmsg(dz, ev)
+	_, err = dz.SubscribeCommand("remind", dazeus.NewUniversalScope(), func(ev dazeus.Event) {
+		handleRemindMessage(dz, ev)
 	})
 	if err != nil {
 		panic(err)
